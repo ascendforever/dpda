@@ -61,11 +61,17 @@ class DPDA(abc.ABC):
         for l in ('START', 'END'):
             if not hasattr(cls, f'{l}_STATE'):
                 raise TypeError(f"{l}_STATE must be defined in subclass")
-        cls.R_RULES = r_rules = frozenset(itertools.chain.from_iterable((t[3] for t in d.values() if t[3]) for d in cls.DELTA.values()))
+        cls.R_RULES = r_rules = frozenset(itertools.chain.from_iterable(
+            (t[3] for t in d.values() if t[3])
+            for d in cls.DELTA.values()
+        ))
         cls.R_RULE_USED_FORMAT_WIDTH = max(len('R'), max(map(len, r_rules)))
         cls.DELTA_RULE_COUNT = drc = sum(map(len, cls.DELTA.values()))
         cls.DELTA_RULE_USED_FORMAT_WIDTH = max(len('Delta'), len(str(drc)))
-        cls.STATES = states = frozenset(itertools.chain((cls.START_STATE,cls.END_STATE), cls.DELTA.keys()))
+        cls.STATES = states = frozenset(itertools.chain(
+            (cls.START_STATE,cls.END_STATE),
+            cls.DELTA.keys()
+        ))
         cls.STATE_FORMAT_WIDTH = max(len('State'), max(map(len, states)))
 
 
@@ -74,8 +80,12 @@ class DPDA(abc.ABC):
     def __repr__(self) -> str:
         return (
             f"<{self.__class__.__name__}() "
-            f"step={self.step} state={self.state} input={''.join(self.input)} stack={''.join(self.stack)} "
-            f"delta_rule_used={self.delta_rule_used!r} r_rule_used={self.r_rule_used!r}>"
+            f"step={self.step} "
+            f"state={self.state} "
+            f"input={''.join(self.input)} "
+            f"stack={''.join(self.stack)} "
+            f"delta_rule_used={self.delta_rule_used!r} "
+            f"r_rule_used={self.r_rule_used!r}>"
         )
 
     def reset(self) -> None:
@@ -99,7 +109,7 @@ class DPDA(abc.ABC):
         return self._input
     @input.setter
     def input(self, value) -> None:
-        self._input = value = collections.deque(value) if value else collections.deque()
+        self._input = value = collections.deque(value or ())
         self._stack_format_width = max(len('Stack'), round((len(value)-1)/2) + 2)
         self._input_format_width = max(len('Unread input'), len(value))
 
@@ -176,7 +186,9 @@ class DPDA(abc.ABC):
             stack_top = self.stack[0] if self.stack else None
 
             # determine what needs to be done
-            for (take_input,take_stack), (new_state,add_to_stack,new_delta_rule_used,new_r_rule_used) in self.__class__.DELTA[self.state].items():
+            for k, v in self.__class__.DELTA[self.state].items():
+                take_input,take_stack = k
+                new_state,add_to_stack,new_delta_rule_used,new_r_rule_used = v
                 if (not take_input or take_input == input_front) and (not take_stack or take_stack == stack_top):
                     break # compatible choice
             else: # no match found
@@ -207,11 +219,11 @@ class DPDA(abc.ABC):
             f"{'Rules used':^{len_right-2}} {bdc['bar']}",
         ))
         i = title[1:].find(bdc['bar'])+1 # this is where the divider line is for the left and right
-        first_line = self.fmt_step(join=bdc['hr'],       bdc=bdc, left=bdc['corner_top_left'], right=bdc['corner_top_right']).replace(' ', bdc['hr'])
+        first_line  = self.fmt_step(join=bdc['hr'],       bdc=bdc, left=bdc['corner_top_left'], right=bdc['corner_top_right']).replace(' ', bdc['hr'])
         second_line = self.fmt_step(join=bdc['bar_down'], bdc=bdc, left=bdc['bar_right'],       right=bdc['bar_left']        ).replace(' ', bdc['hr'])
         first_line  =  first_line[:i] + bdc['bar_down'] +  first_line[i+1:]
         second_line = second_line[:i] + bdc['cross']    + second_line[i+1:]
-        third_line = second_line.replace(bdc['bar_down'], bdc['cross'])
+        third_line  = second_line.replace(bdc['bar_down'], bdc['cross'])
         return '\n'.join((
             first_line,
             title,
@@ -227,7 +239,12 @@ class DPDA(abc.ABC):
             bdc=bdc
         )
     def table_output_end(self, bdc=UTF8_BOX_DRAWING_CHARACTERS) -> str:
-        return self.fmt_step(join=bdc['bar_up'], bdc=bdc, left=bdc['corner_bottom_left'], right=bdc['corner_bottom_right']).replace(' ', bdc['hr'])
+        return self.fmt_step(
+            join=bdc['bar_up'],
+            bdc=bdc,
+            left=bdc['corner_bottom_left'],
+            right=bdc['corner_bottom_right']
+        ).replace(' ', bdc['hr'])
 
     @property
     def table_output_width(self) -> int:
@@ -291,7 +308,7 @@ class ProjectDPDA(DPDA):
 
 def main() -> int:
     args = sys.argv[1:]
-    if not args or any(v in ('-h', '--help') for v in sys.argv[1:]):
+    if not args or any(v in ('-h', '--help') for v in args):
         import textwrap
         import os
         file = os.path.basename(__file__)
